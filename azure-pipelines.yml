@@ -86,7 +86,7 @@ steps:
   displayName: 'Upload Artifacts'
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'netflix-api'
+    ArtifactName: 'nerflixx'
     publishLocation: 'Container'
 
 
