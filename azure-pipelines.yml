@@ -1,0 +1,102 @@
+# nombre de la rama a evaluar
+trigger:
+- main
+- develop
+
+# Nombre del agente instalado en nuestra maquina local o vmImage: en la nube
+pool:
+  name: 'localAgent'
+
+variables:
+  buildConfiguration: 'Release'
+  # Especificamos el SDK de .NET 9 explícitamente
+  dotnetVersion: '9.x'
+
+steps:
+# 1. Configurar el repositorio con historial completo (Indispensable para SonarCloud)
+- checkout: self
+  fetchDepth: 0 # Trae todos los commits para que Sonar sepa quién causó cada warning
+
+# 2. Instalar el SDK de .NET 9
+- task: UseDotNet@2
+  displayName: 'Install .NET SDK $(dotnetVersion)'
+  inputs:
+    packageType: 'sdk'
+    version: $(dotnetVersion)
+
+# 3. Preparar el analisis de configuracion
+# - task: SonarCloudPrepare@4
+#   displayName: 'Prepare Analysis on SonarCloud'
+#   inputs:
+#     SonarCloud: 'SonarCloudConn'
+#     organization: 'ingediego94'
+#     scannerMode: 'dotnet'
+#     projectKey: 'ingediego94_test_1_pipeline'
+#     projectName: 'test_1_pipeline'
+#     extraProperties: |
+#       sonar.pullrequest.disable=true
+
+# 4. Restaurar dependencias (NuGet)
+- task: DotNetCoreCLI@2
+  displayName: 'Restore Dependencies'
+  inputs:
+    command: 'restore'
+    projects: '**/*.csproj'
+
+# 5. Compilar la solución
+- task: DotNetCoreCLI@2
+  displayName: 'Build Solution ($(buildConfiguration))'
+  inputs:
+    command: 'build'
+    projects: '**/*.csproj'
+    arguments: '--configuration $(buildConfiguration)'
+
+# 6. Corre el SonarCloud
+# - task: SonarCloudAnalyze@4
+#   displayName: 'Run Code Analysis'
+#   inputs:
+#     jdkversion: 'JAVA_HOME_17_X64'
+
+# # 7. Publicar los resultados.
+# - task: SonarCloudPublish@4
+#   displayName: 'Publish Quality Gate Result'
+#   inputs:
+#     pollingTimeoutSec: '300'
+
+# 8. Ejecutar Unit Tests
+# Si un test falla, el pipeline se detendrá aquí
+- task: DotNetCoreCLI@2
+  displayName: 'Run Unit Tests'
+  inputs:
+    command: 'test'
+    projects: '**/*Tests/*.csproj'
+    arguments: '--configuration $(buildConfiguration) --collect "Code coverage"'
+
+# 9. Publicar el proyecto (Prepara los archivos para el servidor)
+- task: DotNetCoreCLI@2
+  displayName: 'Publish Application'
+  inputs:
+    command: 'publish'
+    publishWebProjects: true
+    arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+    zipAfterPublish: true
+
+# 10. Subir el artefacto a Azure Pipelines
+- task: PublishBuildArtifacts@1
+  displayName: 'Upload Artifacts'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'netflix-api'
+    publishLocation: 'Container'
+
+
+# 11. Desplegar a Azure App Service (CD)
+# - task: AzureWebApp@1
+#   displayName: 'Deploy Web API to Azure'
+#   # Solo se ejecuta si los pasos anteriores fueron exitosos Y si la rama es main
+#   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+#   inputs:
+#     azureSubscription: 'AzureConn' # El nombre que puso en el paso 3
+#     appType: 'webAppLinux'
+#     appName: 'api-netflix-diego'   # El nombre único que puso en el paso 2
+#     package: '$(Build.ArtifactStagingDirectory)/**/*.zip'
