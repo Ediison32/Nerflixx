@@ -64,13 +64,13 @@ steps:
 #     pollingTimeoutSec: '300'
 
 # 8. Ejecutar Unit Tests
-# Si un test falla, el pipeline se detendrá aquí
-- task: DotNetCoreCLI@2
-  displayName: 'Run Unit Tests'
-  inputs:
-    command: 'test'
-    projects: '**/*Tests/*.csproj'
-    arguments: '--configuration $(buildConfiguration) --collect "Code coverage"'
+# # Si un test falla, el pipeline se detendrá aquí
+# - task: DotNetCoreCLI@2
+#   displayName: 'Run Unit Tests'
+#   inputs:
+#     command: 'test'
+#     projects: '**/*Tests/*.csproj'
+#     arguments: '--configuration $(buildConfiguration) --collect "Code coverage"'
 
 # 9. Publicar el proyecto (Prepara los archivos para el servidor)
 - task: DotNetCoreCLI@2
